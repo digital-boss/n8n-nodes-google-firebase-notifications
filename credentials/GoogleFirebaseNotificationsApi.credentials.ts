@@ -4,9 +4,9 @@ import {
 } from 'n8n-workflow';
 
 export interface IGoogleFirebaseNotificationsApiCredentials {
-	email: string;
-	password: string;
-	token: string;
+	projectId: string;
+	clientEmail: string;
+	privateKey: string;
 }
 
 export class GoogleFirebaseNotificationsApi implements ICredentialType {
