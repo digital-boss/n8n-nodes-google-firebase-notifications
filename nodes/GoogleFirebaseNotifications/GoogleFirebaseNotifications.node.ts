@@ -46,6 +46,10 @@ export class GoogleFirebaseNotifications implements INodeType {
 				type: 'options',
 				options: [
 					{
+						name: 'FCM Token',
+						value: 'fcmToken',
+					},
+					{
 						name: 'Notifications',
 						value: 'notifications',
 					},
@@ -55,6 +59,7 @@ export class GoogleFirebaseNotifications implements INodeType {
 			},
 
 			...descriptions.notifications,
+			...descriptions.fcmToken,
 		],
 	};
 
@@ -80,6 +85,16 @@ export class GoogleFirebaseNotifications implements INodeType {
 		const clientEmail = creds.clientEmail as string;
 		const privateKey = creds.privateKey as string;
 
+		// Initialize the app
+		const app = admin.initializeApp({
+			credential: admin.credential.cert({
+				projectId,
+				clientEmail,
+				// replace `\` and `n` character pairs w/ single `\n` character
+				privateKey: privateKey.replace(/\\n/g, '\n'),
+			})
+		})
+
 		for (let i = 0; i < items.length; i++) {
 			try {
 				switch (resource) {
@@ -94,17 +109,6 @@ export class GoogleFirebaseNotifications implements INodeType {
 								const body = this.getNodeParameter('body', i) as string;
 								const token = this.getNodeParameter('fcmToken', i) as string;
 
-								
-								// Initialize the app
-								const app = admin.initializeApp({
-									credential: admin.credential.cert({
-									  projectId,
-									  clientEmail,
-									  // replace `\` and `n` character pairs w/ single `\n` character
-									  privateKey: privateKey.replace(/\\n/g, '\n'),
-									})
-								})
-																
 								const message = {
 									notification: {
 										title,
@@ -113,11 +117,94 @@ export class GoogleFirebaseNotifications implements INodeType {
 									token,
 								};
 								
-								// Send a message to the device corresponding to the provided
-								// registration token.
+								// Send a message to the device corresponding to the provided registration token
 								responseData = await admin.messaging(app).send(message);
 								break;
 
+							default: {
+								throw new NodeOperationError(this.getNode(), `The operation "${operation}" is not supported for resource "${resource}"!`);
+							}
+						}
+						break;
+
+					case 'fcmToken':
+						switch (operation) {
+							
+							case 'get': {
+								// ----------------------------------
+								//        fcmToken:get
+								// ----------------------------------
+								const firestore = admin.firestore(app);
+								
+								const collection = this.getNodeParameter('collection', i) as string;
+								const uid = this.getNodeParameter('uid', i) as string;
+
+								// Fetch the document's data
+								responseData = await firestore.collection(collection).doc(uid).get()
+									.then((doc) => {
+										if (doc.exists) {
+											return doc.data();
+										} else {
+											new NodeOperationError(this.getNode(), 'Document not found');
+										}
+									})
+									.catch((error) => {
+										console.error();
+										new NodeOperationError(this.getNode(), `Error getting document:${error}`, );
+									});
+								break;
+							}
+								
+							case 'removeStale': {
+								
+								// ----------------------------------
+								//        fcmToken:removeStale
+								// ----------------------------------
+								
+								const firestore = admin.firestore(app);
+
+								const createdBefore = this.getNodeParameter('createdBefore', i) as number;
+								const collection = this.getNodeParameter('collection', i) as string;
+					
+								// Query for expired tokens in your Firestore collection
+								const querySnapshot = await firestore
+									.collection(collection)
+									.where('created_at', '<=', createdBefore)
+									.get();
+
+								// Create a batch operation
+								const batch = firestore.batch();
+
+								// Iterate over the query results and add delete operations to the batch
+								querySnapshot.forEach((doc) => {
+									const docRef = firestore.collection(collection).doc(doc.id);
+									batch.delete(docRef);
+								});
+
+								// Commit the batched delete operation
+								responseData = await batch.commit() as unknown as IDataObject;
+								break;
+							}
+							
+							case 'update': {
+								// ----------------------------------
+								//        fcmToken:update
+								// ----------------------------------
+
+								const firestore = admin.firestore(app);
+
+								const collection = this.getNodeParameter('collection', i) as string;
+								const uid = this.getNodeParameter('uid', i) as string;
+								const fcmToken = this.getNodeParameter('fcmToken', i) as string;
+
+								// Store the registration token in a 'tokens' collection with the user ID as the document ID
+								responseData = await firestore.collection(collection).doc(uid).set({
+									token: fcmToken,
+									created_at: Date.now(),
+								})
+								break;
+							}
+								
 							default: {
 								throw new NodeOperationError(this.getNode(), `The operation "${operation}" is not supported for resource "${resource}"!`);
 							}
