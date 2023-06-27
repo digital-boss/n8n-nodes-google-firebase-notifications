@@ -16,7 +16,7 @@ import { googleFirebaseNotificationsApiTest } from './GoogleFirebaseNotification
 
 export class GoogleFirebaseNotifications implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'GoogleFirebaseNotifications',
+		displayName: 'Google Firebase Notifications',
 		name: 'googleFirebaseNotifications',
 		icon: 'file:googleFirebaseNotifications.svg',
 		group: ['transform'],
@@ -24,7 +24,7 @@ export class GoogleFirebaseNotifications implements INodeType {
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: `Consume GoogleFirebaseNotifications API (v.${version})`,
 		defaults: {
-				name: 'GoogleFirebaseNotifications',
+				name: 'Google Firebase Notifications',
 				color: '#FFCA28',
 		},
 		inputs: ['main'],
@@ -85,15 +85,20 @@ export class GoogleFirebaseNotifications implements INodeType {
 		const clientEmail = creds.clientEmail as string;
 		const privateKey = creds.privateKey as string;
 
-		// Initialize the app
-		const app = admin.initializeApp({
-			credential: admin.credential.cert({
-				projectId,
-				clientEmail,
-				// replace `\` and `n` character pairs w/ single `\n` character
-				privateKey: privateKey.replace(/\\n/g, '\n'),
+		if (!admin.apps.length) {
+			// Firebase app is not initialized, initialize it
+			admin.initializeApp({
+				credential: admin.credential.cert({
+					projectId,
+					clientEmail,
+					// replace `\` and `n` character pairs w/ single `\n` character
+					privateKey: privateKey.replace(/\\n/g, '\n'),
+				})
 			})
-		})
+		}
+		
+		// Access the initialized Firebase app
+		const app = admin.app();
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -140,18 +145,10 @@ export class GoogleFirebaseNotifications implements INodeType {
 								const uid = this.getNodeParameter('uid', i) as string;
 
 								// Fetch the document's data
-								responseData = await firestore.collection(collection).doc(uid).get()
-									.then((doc) => {
-										if (doc.exists) {
-											return doc.data();
-										} else {
-											new NodeOperationError(this.getNode(), 'Document not found');
-										}
-									})
-									.catch((error) => {
-										console.error();
-										new NodeOperationError(this.getNode(), `Error getting document:${error}`, );
-									});
+								responseData = (await firestore.collection(collection).doc(uid).get()).data();
+								if (responseData === undefined) {
+									throw new NodeOperationError(this.getNode(), 'Document not found');
+								}
 								break;
 							}
 								
@@ -214,10 +211,6 @@ export class GoogleFirebaseNotifications implements INodeType {
 					default: {
 						throw new NodeOperationError(this.getNode(), `The resource "${resource}" is not supported!`);
 					}
-				}
-				
-				if (!responseData) {
-					responseData = { success: true };
 				}
 
 				if (Array.isArray(responseData)) {

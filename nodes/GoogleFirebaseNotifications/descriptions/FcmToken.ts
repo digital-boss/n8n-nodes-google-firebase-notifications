@@ -10,6 +10,7 @@ export const fcmToken: INodeProperties[] = [
 	{
 		displayName: 'Operation',
 		name: 'operation',
+		required: true,
 		type: 'options',
 		displayOptions: {
 			show: {
@@ -43,6 +44,7 @@ export const fcmToken: INodeProperties[] = [
 	{
 		displayName: 'Collection',
 		name: 'collection',
+		required: true,
 		type: 'string',
 		displayOptions: {
 			show: {
@@ -74,6 +76,7 @@ export const fcmToken: INodeProperties[] = [
 	{
 		displayName: 'Collection',
 		name: 'collection',
+		required: true,
 		type: 'string',
 		displayOptions: {
 			show: {
@@ -87,6 +90,7 @@ export const fcmToken: INodeProperties[] = [
 	{
 		displayName: 'Created Before',
 		name: 'createdBefore',
+		required: true,
 		type: 'string',
 		displayOptions: {
 			show: {
@@ -104,6 +108,7 @@ export const fcmToken: INodeProperties[] = [
 	{
 		displayName: 'Collection',
 		name: 'collection',
+		required: true,
 		type: 'string',
 		displayOptions: {
 			show: {
@@ -131,6 +136,7 @@ export const fcmToken: INodeProperties[] = [
 	{
 		displayName: 'FCM Token',
 		name: 'fcmToken',
+		required: true,
 		type: 'string',
 		displayOptions: {
 			show: {

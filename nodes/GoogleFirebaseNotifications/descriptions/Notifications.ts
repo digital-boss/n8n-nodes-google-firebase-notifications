@@ -10,6 +10,7 @@ export const notifications: INodeProperties[] = [
 	{
 		displayName: 'Operation',
 		name: 'operation',
+		required: true,
 		type: 'options',
 		displayOptions: {
 			show: {
@@ -33,6 +34,7 @@ export const notifications: INodeProperties[] = [
 	{
 		displayName: 'FCM Token',
 		name: 'fcmToken',
+		required: true,
 		type: 'string',
 		displayOptions: {
 			show: {
