@@ -10,6 +10,8 @@ import {
 } from 'n8n-workflow';
 
 import * as admin from 'firebase-admin';
+import { Message } from 'firebase-admin/messaging';
+
 import * as descriptions from './descriptions';
 import { version } from '../version';
 import { googleFirebaseNotificationsApiTest } from './GoogleFirebaseNotificationsApiTest';
@@ -96,7 +98,7 @@ export class GoogleFirebaseNotifications implements INodeType {
 				})
 			})
 		}
-		
+
 		// Access the initialized Firebase app
 		const app = admin.app();
 
@@ -110,18 +112,27 @@ export class GoogleFirebaseNotifications implements INodeType {
 								//        notifications:send
 								// ----------------------------------
 
-								const title = this.getNodeParameter('title', i) as string;
-								const body = this.getNodeParameter('body', i) as string;
-								const token = this.getNodeParameter('fcmToken', i) as string;
+								const jsonMessage = this.getNodeParameter('jsonMessage', i) as string;
 
-								const message = {
-									notification: {
-										title,
-										body,
-									},
-									token,
-								};
-								
+								let message: Message;
+								if(jsonMessage) {
+									message = this.getNodeParameter('message', i) as Message;
+								} else {
+									const title = this.getNodeParameter('title', i) as string;
+									const body = this.getNodeParameter('body', i) as string;
+									const token = this.getNodeParameter('fcmToken', i) as string;
+
+									message = {
+										notification: {
+											title,
+											body,
+										},
+										token,
+									};
+									const additionalFields = this.getNodeParameter('additionalFields', i) as {data: { [key: string]: string; }};
+									Object.assign(message, additionalFields);
+								}
+
 								// Send a message to the device corresponding to the provided registration token
 								responseData = await admin.messaging(app).send(message);
 								break;
@@ -134,13 +145,13 @@ export class GoogleFirebaseNotifications implements INodeType {
 
 					case 'fcmToken':
 						switch (operation) {
-							
+
 							case 'get': {
 								// ----------------------------------
 								//        fcmToken:get
 								// ----------------------------------
 								const firestore = admin.firestore(app);
-								
+
 								const collection = this.getNodeParameter('collection', i) as string;
 								const uid = this.getNodeParameter('uid', i) as string;
 
@@ -151,18 +162,18 @@ export class GoogleFirebaseNotifications implements INodeType {
 								}
 								break;
 							}
-								
+
 							case 'removeStale': {
-								
+
 								// ----------------------------------
 								//        fcmToken:removeStale
 								// ----------------------------------
-								
+
 								const firestore = admin.firestore(app);
 
 								const createdBefore = this.getNodeParameter('createdBefore', i) as number;
 								const collection = this.getNodeParameter('collection', i) as string;
-					
+
 								// Query for expired tokens in your Firestore collection
 								const querySnapshot = await firestore
 									.collection(collection)
@@ -182,7 +193,7 @@ export class GoogleFirebaseNotifications implements INodeType {
 								responseData = await batch.commit() as unknown as IDataObject;
 								break;
 							}
-							
+
 							case 'update': {
 								// ----------------------------------
 								//        fcmToken:update
@@ -201,7 +212,7 @@ export class GoogleFirebaseNotifications implements INodeType {
 								})
 								break;
 							}
-								
+
 							default: {
 								throw new NodeOperationError(this.getNode(), `The operation "${operation}" is not supported for resource "${resource}"!`);
 							}
